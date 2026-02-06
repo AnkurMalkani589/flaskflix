@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Movies - FlaskFlix{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="text-danger">
+            {% if search %}
+                Search Results for "{{ search }}"
+            {% elif category %}
+                {{ category }} Movies
+            {% else %}
+                All Movies
+            {% endif %}
+        </h2>
+    </div>
+</div>
+
+{% if movies.items %}
+<div class="row g-4">
+    {% for movie in movies.items %}
+    <div class="col-sm-6 col-md-4 col-lg-3">
+        <div class="movie-card h-100">
+            <a href="{{ url_for('movies.detail', movie_id=movie.id) }}">
+                <img src="{{ movie.poster }}" class="movie-poster" alt="{{ movie.title }}" onerror="this.src='https://via.placeholder.com/300x450/141414/e50914?text=FlaskFlix'">
+            </a>
+            <div class="movie-body">
+                <h5 class="movie-title">
+                    <a href="{{ url_for('movies.detail', movie_id=movie.id) }}">{{ movie.title }}</a>
+                </h5>
+                <p class="movie-meta">
+                    <span class="badge bg-danger">{{ movie.category }}</span>
+                    <span>{{ movie.release_year }}</span>
+                    {% if movie.rating and movie.rating > 0 %}
+                    <span class="rating">⭐ {{ movie.rating }}</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if movies.pages > 1 %}
+<nav class="mt-5" aria-label="Movie pagination">
+    <ul class="pagination justify-content-center flex-wrap">
+        {% if movies.has_prev %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('movies.index', page=movies.prev_num, search=search, category=category) }}">Previous</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+        
+        {% for page_num in movies.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+            {% if page_num %}
+                {% if page_num == movies.page %}
+                <li class="page-item active"><span class="page-link bg-danger border-danger">{{ page_num }}</span></li>
+                {% else %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('movies.index', page=page_num, search=search, category=category) }}">{{ page_num }}</a></li>
+                {% endif %}
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if movies.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('movies.index', page=movies.next_num, search=search, category=category) }}">Next</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <div class="display-1 mb-3">🔍</div>
+    <h3>No movies found</h3>
+    <p class="text-muted">Try adjusting your search or filter criteria.</p>
+    <a href="{{ url_for('movies.index') }}" class="btn btn-outline-danger">View All Movies</a>
+</div>
+{% endif %}
+{% endblock %}
+

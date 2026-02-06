@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}My Watchlist - FlaskFlix{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="text-danger">My Watchlist</h2>
+        <p class="text-muted">Movies you've saved to watch later</p>
+    </div>
+</div>
+
+{% if movies %}
+<div class="row g-3 g-md-4">
+    {% for movie in movies %}
+    <div class="col-6 col-sm-6 col-md-4 col-lg-3">
+        <div class="movie-card h-100">
+            <a href="{{ url_for('movies.detail', movie_id=movie.id) }}">
+                <img src="{{ movie.poster }}" class="movie-poster" alt="{{ movie.title }}" onerror="this.src='https://via.placeholder.com/300x450/141414/e50914?text=FlaskFlix'">
+            </a>
+            <div class="movie-body">
+                <h5 class="movie-title">
+                    <a href="{{ url_for('movies.detail', movie_id=movie.id) }}">{{ movie.title }}</a>
+                </h5>
+                <p class="movie-meta">
+                    <span class="badge bg-danger">{{ movie.category }}</span>
+                    <span class="text-muted">{{ movie.release_year }}</span>
+                </p>
+                <a href="{{ url_for('watchlist.remove', movie_id=movie.id) }}" class="btn btn-sm btn-outline-danger w-100 mt-2">Remove</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <div class="display-1 mb-3">📋</div>
+    <h3>Your watchlist is empty</h3>
+    <p class="text-muted">Start adding movies to watch later!</p>
+    <a href="{{ url_for('movies.index') }}" class="btn btn-danger">Browse Movies</a>
+</div>
+{% endif %}
+{% endblock %}
+

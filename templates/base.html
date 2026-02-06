@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="X-UA-Compatible" content="IE=edge">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>{% block title %}FlaskFlix - Netflix Clone{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        /* Additional inline styles for critical responsive fixes */
+        .navbar-collapse {
+            flex-grow: 0;
+        }
+        
+        @media (max-width: 991.98px) {
+            .navbar-nav {
+                text-align: center;
+            }
+            
+            .navbar-nav.ms-auto {
+                margin-left: 0 !important;
+                margin-right: auto !important;
+            }
+        }
+    </style>
+</head>
+<body class="overflow-hidden">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand me-2" href="{{ url_for('movies.index') }}">🎬 FlaskFlix</a>
+            <ul class="navbar-nav me-auto mb-0 align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link py-2" href="{{ url_for('movies.index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-2" href="{{ url_for('watchlist.index') }}">Watchlist</a>
+                    </li>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link py-2" href="{{ url_for('movies.create') }}">Add Movie</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- <ul class="navbar-nav me-auto mb-0 align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link py-2" href="{{ url_for('movies.index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link py-2" href="{{ url_for('watchlist.index') }}">Watchlist</a>
+                    </li>
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <li class="nav-item">
+                        <a class="nav-link py-2" href="{{ url_for('movies.create') }}">Add Movie</a>
+                    </li>
+                    {% endif %}
+                </ul> -->
+                <form class="me-3" method="GET" action="{{ url_for('movies.index') }}" id="movieSearchForm">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md">
+                            <input class="form-control form-control-sm" type="search" name="search" placeholder="Search movies..." aria-label="Search" value="{{ request.args.get('search', '') }}">
+                        </div>
+                        <div class="col-6 col-sm-auto col-md-auto">
+                            <select class="form-select form-select-sm" name="category" onchange="this.form.submit()">
+                                <option value="">All Categories</option>
+                                {% for cat in categories|default([]) %}
+                                <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 col-sm-auto col-md-auto">
+                            <button class="btn btn-outline-light btn-sm w-100" type="submit">Search</button>
+                        </div>
+                    </div>
+                </form>
+                <script>
+                    // Auto-submit form when ENTER key is pressed in search input
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const searchInput = document.querySelector('input[name="search"]');
+                        const searchForm = document.getElementById('movieSearchForm');
+                        
+                        if (searchInput && searchForm) {
+                            searchInput.addEventListener('keypress', function(e) {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    searchForm.submit();
+                                }
+                            });
+                        }
+                    });
+                </script>
+                <div class="d-flex align-items-center gap-2">
+                    {% if current_user.is_authenticated %}
+                    <span class="nav-link">Hello, {{ current_user.username }}</span>
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                    {% else %}
+                    <a class="btn btn-danger btn-sm" href="{{ url_for('auth.login') }}">Login</a>
+                    <a class="btn btn-danger btn-sm" href="{{ url_for('auth.signup') }}">Sign Up</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer mt-auto">
+        <div class="container text-center">
+            <p class="mb-0">&copy; 2024 FlaskFlix. Built with Flask & Bootstrap.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+

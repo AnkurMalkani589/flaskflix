@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Watch {{ movie.title }} - FlaskFlix{% endblock %}
+
+{% block head %}
+<!-- Video.js CSS -->
+<link href="https://vjs.zencdn.net/8.3.0/video-js.css" rel="stylesheet">
+<style>
+    /* Custom Video.js Theme - Netflix Style */
+    .video-js .vjs-control-bar {
+        background: linear-gradient(transparent, rgba(0,0,0,0.9)) !important;
+    }
+    
+    .video-js .vjs-big-play-button {
+        background: #e50914 !important;
+        border: none !important;
+        border-radius: 50% !important;
+        width: 80px !important;
+        height: 80px !important;
+        line-height: 80px !important;
+        font-size: 40px !important;
+    }
+    
+    .video-js:hover .vjs-big-play-button {
+        background: #f40612 !important;
+    }
+    
+    .vjs-theme-netflix {
+        --vjs-theme-primary: #e50914;
+    }
+    
+    /* Progress bar styling */
+    .watch-progress-bar {
+        position: absolute;
+        bottom: 60px;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: rgba(255,255,255,0.2);
+        cursor: pointer;
+    }
+    
+    .watch-progress-fill {
+        height: 100%;
+        background: #e50914;
+        width: 0%;
+        transition: width 0.3s;
+    }
+    
+    .quality-selector {
+        position: relative;
+    }
+    
+    .quality-menu {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        right: 0;
+        background: rgba(0,0,0,0.9);
+        border-radius: 4px;
+        padding: 8px 0;
+        min-width: 100px;
+    }
+    
+    .quality-menu.show {
+        display: block;
+    }
+    
+    .quality-option {
+        padding: 6px 16px;
+        cursor: pointer;
+        color: white;
+        font-size: 12px;
+    }
+    
+    .quality-option:hover {
+        background: rgba(255,255,255,0.1);
+    }
+    
+    .quality-option.active {
+        color: #e50914;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="watch-container overflow-hidden">
+    <!-- Video Player -->
+    <div class="video-wrapper position-relative w-100" style="max-width: 100%;">
+        <video 
+            id="video-player" 
+            class="video-js vjs-theme-netflix vjs-big-play-centered w-100"
+            controls 
+            preload="auto" 
+            data-setup='{}'
+            poster="{{ movie.poster }}"
+        >
+        </video>
+        
+        <!-- Progress bar overlay -->
+        <div class="watch-progress-bar" id="progressBar">
+            <div class="watch-progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+    
+    <!-- Movie Info -->
+    <div class="movie-info-section mt-4">
+        <div class="row">
+            <div class="col-12 col-md-8 mb-4 mb-md-0">
+                <h1 class="movie-title">{{ movie.title }}</h1>
+                <div class="movie-meta mb-3 d-flex flex-wrap gap-2">
+                    <span class="badge bg-danger">{{ movie.category }}</span>
+                    <span class="text-muted">{{ movie.release_year }}</span>
+                    {% if movie.formatted_duration %}
+                    <span class="text-muted">{{ movie.formatted_duration }}</span>
+                    {% endif %}
+                    {% if movie.rating > 0 %}
+                    <span class="rating">&#9733; {{ movie.rating }}/10</span>
+                    {% endif %}
+                </div>
+                <p class="movie-description">{{ movie.description }}</p>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="action-buttons d-flex flex-wrap gap-2">
+                    {% if in_watchlist %}
+                    <a href="{{ url_for('watchlist.remove', movie_id=movie.id) }}" class="btn btn-outline-light">
+                        &#10003; In Watchlist
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('watchlist.add', movie_id=movie.id) }}" class="btn btn-outline-light">
+                        + Add to Watchlist
+                    </a>
+                    {% endif %}
+                    
+                    {% if current_user.is_admin %}
+                    <a href="{{ url_for('movies.edit', movie_id=movie.id) }}" class="btn btn-outline-warning">
+                        Edit Movie
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Continue Watching Section -->
+    <div class="continue-watching-section mt-5">
+        <h3 class="mb-4">Continue Watching</h3>
+        <div class="row g-3" id="continueWatchingList">
+            <!-- Populated by JavaScript -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Video.js -->
+<script src="https://vjs.zencdn.net/8.3.0/video.min.js"></script>
+<script>
+    // Global variables
+    var player;
+    var currentMovieId = {{ movie.id | tojson }};
+    var progressUpdateInterval;
+    var savedProgress = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize video player
+        initPlayer();
+        
+        // Load initial progress
+        loadProgress();
+        
+        // Load continue watching
+        loadContinueWatching();
+        
+        // Setup progress bar click
+        setupProgressBar();
+    });
+    
+    function initPlayer() {
+        // Get streaming token first
+        fetch('/stream/' + currentMovieId + '/token')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                // Initialize Video.js
+                player = videojs('video-player', {
+                    controls: true,
+                    autoplay: false,
+                    preload: 'auto',
+                    fluid: true,
+                    playbackRates: [0.5, 1, 1.25, 1.5, 2]
+                });
+                
+                // Set up video source
+                if (data.stream_type === 'hls') {
+                    player.src({
+                        type: 'application/vnd.apple.mpegurl',
+                        src: data.stream_url
+                    });
+                } else {
+                    player.src({
+                        type: 'video/mp4',
+                        src: data.stream_url
+                    });
+                }
+                
+                // Resume playback position
+                if (data.progress && data.progress.current_time > 0) {
+                    player.currentTime(data.progress.current_time);
+                }
+                
+                // Event listeners
+                player.on('timeupdate', onTimeUpdate);
+                player.on('ended', onVideoEnded);
+                player.on('pause', onVideoPause);
+                player.on('play', onVideoPlay);
+                
+                // Quality selector custom implementation
+                addQualitySelector();
+                
+            })
+            .catch(function(error) {
+                console.error('Error getting stream token:', error);
+                showError('Failed to load video stream');
+            });
+    }
+    
+    function onTimeUpdate() {
+        // Update progress bar visually
+        var currentTime = player.currentTime();
+        var duration = player.duration();
+        var percentage = (currentTime / duration) * 100;
+        document.getElementById('progressFill').style.width = percentage + '%';
+        
+        // Save progress every 5 seconds
+        if (Math.floor(currentTime) % 5 === 0) {
+            saveProgress(currentTime, duration);
+        }
+    }
+    
+    function onVideoEnded() {
+        // Mark as completed
+        saveProgress(player.duration(), player.duration());
+        
+        // Show completion message
+        showNotification('Movie completed!');
+    }
+    
+    function onVideoPause() {
+        // Save progress on pause
+        saveProgress(player.currentTime(), player.duration());
+    }
+    
+    function onVideoPlay() {
+        // Start progress update interval
+        if (progressUpdateInterval) {
+            clearInterval(progressUpdateInterval);
+        }
+    }
+    
+    function saveProgress(currentTime, duration) {
+        fetch('/stream/' + currentMovieId + '/progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                current_time: currentTime,
+                total_duration: duration
+            })
+        }).catch(function(error) {
+            console.error('Error saving progress:', error);
+        });
+    }
+    
+    function loadProgress() {
+        fetch('/stream/' + currentMovieId + '/progress')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                savedProgress = data;
+            })
+            .catch(function(error) {
+                console.error('Error loading progress:', error);
+            });
+    }
+    
+    function loadContinueWatching() {
+        fetch('/continue-watching')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                var container = document.getElementById('continueWatchingList');
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No movies in progress</p>';
+                    return;
+                }
+                
+                var html = '';
+                for (var i = 0; i < Math.min(data.length, 4); i++) {
+                    var item = data[i];
+                    html += '<div class="col-md-3 col-sm-6">';
+                    html += '<div class="movie-card h-100">';
+                    html += '<a href="/movie/' + item.movie.id + '/watch">';
+                    html += '<img src="' + (item.movie.poster || '') + '"';
+                    html += ' class="movie-poster"';
+                    html += ' alt="' + item.movie.title + '"';
+                    html += ' onerror="this.src=\'https://via.placeholder.com/300x450/141414/e50914?text=FlaskFlix\'">';
+                    html += '</a>';
+                    html += '<div class="progress-bar-container">';
+                    html += '<div class="progress" style="height: 4px;">';
+                    html += '<div class="progress-bar bg-danger"';
+                    html += ' style="width: ' + item.progress.percentage + '%"></div>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '<div class="movie-body">';
+                    html += '<h6 class="movie-title">';
+                    html += '<a href="/movie/' + item.movie.id + '/watch">' + item.movie.title + '</a>';
+                    html += '</h6>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+            })
+            .catch(function(error) {
+                console.error('Error loading continue watching:', error);
+            });
+    }
+    
+    function setupProgressBar() {
+        var progressBar = document.getElementById('progressBar');
+        progressBar.addEventListener('click', function(e) {
+            if (!player) return;
+            
+            var rect = this.getBoundingClientRect();
+            var percentage = (e.clientX - rect.left) / rect.width;
+            var duration = player.duration();
+            
+            player.currentTime(percentage * duration);
+        });
+    }
+    
+    function addQualitySelector() {
+        // Add quality selector button to control bar
+        var controlBar = document.querySelector('.video-js .vjs-control-bar');
+        
+        var qualityButton = document.createElement('button');
+        qualityButton.className = 'vjs-control vjs-button quality-selector';
+        qualityButton.innerHTML = '<span class="vjs-icon-hd"></span>';
+        qualityButton.title = 'Quality';
+        
+        var qualityMenu = document.createElement('div');
+        qualityMenu.className = 'quality-menu';
+        qualityMenu.innerHTML = 
+            '<div class="quality-option active" data-quality="720p">720p</div>' +
+            '<div class="quality-option" data-quality="1080p">1080p</div>' +
+            '<div class="quality-option" data-quality="360p">360p</div>';
+        
+        qualityButton.appendChild(qualityMenu);
+        controlBar.insertBefore(qualityButton, controlBar.children[controlBar.children.length - 1]);
+        
+        // Toggle menu
+        qualityButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            qualityMenu.classList.toggle('show');
+        });
+        
+        // Close menu when clicking elsewhere
+        document.addEventListener('click', function() {
+            qualityMenu.classList.remove('show');
+        });
+        
+        // Quality selection
+        var options = qualityMenu.querySelectorAll('.quality-option');
+        for (var i = 0; i < options.length; i++) {
+            options[i].addEventListener('click', function() {
+                var quality = this.dataset.quality;
+                
+                // Update active state
+                for (var j = 0; j < options.length; j++) {
+                    options[j].classList.remove('active');
+                }
+                this.classList.add('active');
+                
+                // Switch quality (in production, would load different HLS variant)
+                showNotification('Quality changed to ' + quality);
+                
+                qualityMenu.classList.remove('show');
+            });
+        }
+    }
+    
+    function showError(message) {
+        var container = document.querySelector('.video-wrapper');
+        container.innerHTML = 
+            '<div class="alert alert-danger">' +
+            '<h4>Streaming Error</h4>' +
+            '<p>' + message + '</p>' +
+            '<p class="text-muted">Make sure you are logged in and the movie has streaming enabled.</p>' +
+            '</div>';
+    }
+    
+    function showNotification(message) {
+        // Create notification element
+        var notification = document.createElement('div');
+        notification.className = 'notification-toast';
+        notification.style.cssText = 
+            'position: fixed; top: 80px; right: 20px; background: #333; color: white; ' +
+            'padding: 12px 24px; border-radius: 4px; z-index: 9999; ' +
+            'animation: slideIn 0.3s ease;';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(function() {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(function() { notification.remove(); }, 300);
+        }, 3000);
+    }
+</script>
+
+<style>
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+    
+    .watch-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .video-wrapper {
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .video-js {
+        width: 100%;
+        aspect-ratio: 16/9;
+    }
+    
+    .movie-info-section {
+        padding: 24px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .movie-title {
+        font-size: 28px;
+        margin-bottom: 12px;
+    }
+    
+    .movie-description {
+        color: #ccc;
+        line-height: 1.6;
+    }
+    
+    .progress-bar-container {
+        padding: 0 8px 8px;
+        background: #1a1a1a;
+    }
+</style>
+{% endblock %}
+

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Home - FlaskFlix{% endblock %}
+
+{% block content %}
+<div class="hero-section mb-5">
+    <div class="row align-items-center">
+        <div class="col-lg-6 order-2 order-lg-1">
+            <h1 class="display-4 fw-bold text-danger">Unlimited Movies, TV Shows & More</h1>
+            <p class="lead">Watch anywhere. Cancel anytime. Experience the best streaming service built with Flask.</p>
+            <a href="{{ url_for('movies.index') }}" class="btn btn-danger btn-lg">Browse Movies</a>
+        </div>
+        <div class="col-lg-6 text-center order-1 order-lg-2 mb-4 mb-lg-0">
+            <div class="hero-icon display-1">🍿</div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="border-bottom border-secondary pb-2">Featured Features</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="feature-card h-100">
+            <div class="feature-icon">🎥</div>
+            <h3>Huge Collection</h3>
+            <p>Browse thousands of movies across all genres. From action to drama, we've got it all.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card h-100">
+            <div class="feature-icon">📋</div>
+            <h3>Watchlist</h3>
+            <p>Create your personal watchlist. Add movies you want to watch and access them anytime.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="feature-card h-100">
+            <div class="feature-icon">🔍</div>
+            <h3>Easy Search</h3>
+            <p>Find your favorite movies quickly with our powerful search and filter options.</p>
+        </div>
+    </div>
+</div>
+
+{% if not current_user.is_authenticated %}
+<div class="row mt-5">
+    <div class="col-12 text-center">
+        <div class="cta-section p-4 p-md-5 rounded">
+            <h2 class="mb-3">Ready to start watching?</h2>
+            <p class="mb-4">Join thousands of movie lovers on FlaskFlix today!</p>
+            <a href="{{ url_for('auth.signup') }}" class="btn btn-danger btn-lg">Sign Up Now</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

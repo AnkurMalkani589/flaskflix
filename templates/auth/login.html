@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Login - FlaskFlix{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center min-vh-75">
+    <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="auth-card">
+            <div class="text-center mb-4">
+                <h2 class="text-danger">Welcome Back</h2>
+                <p class="text-muted">Sign in to your account</p>
+            </div>
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-danger w-100 py-2">Login</button>
+            </form>
+            <div class="text-center mt-4">
+                <p>Don't have an account? <a href="{{ url_for('auth.signup') }}" class="text-danger">Sign up</a></p>
+                <p><a href="{{ url_for('auth.reset_request') }}" class="text-muted">Forgot Password?</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
